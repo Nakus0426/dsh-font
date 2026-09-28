@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": ["lib/**", "docs/**", "test/fixtures/**"],
+  "overrides": [
+    {
+      "files": ["test/**/*.mjs"],
+      "rules": {
+        "typescript/no-floating-promises": "off"
+      }
+    }
+  ]
+}

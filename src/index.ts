@@ -1,11 +1,11 @@
-import z from '@deepseek-ai/schemastery'
-import { getCatalog } from './font-catalog.js'
+import z from "@deepseek-ai/schemastery";
+import { getCatalog } from "./font-catalog.js";
 
 /** Cordis plugin name. */
-export const name = 'dsh-font'
+export const name = "dsh-font";
 
 /** Connection provides the authenticated Fetch-route fence this plugin registers inside. */
-export const inject = ['connection']
+export const inject = ["connection"];
 
 /**
  * Settings-document fields owned by this plugin entry.
@@ -16,9 +16,9 @@ export const inject = ['connection']
  * also means the Host adopts a new value without remounting the plugin.
  */
 export const Config = z.object({
-  uiFamily: z.string().default('').volatile(),
-  codeFamily: z.string().default('').volatile(),
-})
+  uiFamily: z.string().default("").volatile(),
+  codeFamily: z.string().default("").volatile(),
+});
 
 /**
  * Serve the installed font catalog over an authenticated GET route.
@@ -31,12 +31,10 @@ export const Config = z.object({
  */
 export function apply(ctx: any): void {
   ctx.connection.fetch.register({
-    path: '/api/fonts.catalog',
-    methods: ['GET'],
-    requestBody: 'buffered',
-    fetch: async () => Response.json(
-      { fonts: await getCatalog() },
-      { headers: { 'cache-control': 'no-store' } },
-    ),
-  })
+    path: "/api/fonts.catalog",
+    methods: ["GET"],
+    requestBody: "buffered",
+    fetch: async () =>
+      Response.json({ fonts: await getCatalog() }, { headers: { "cache-control": "no-store" } }),
+  });
 }

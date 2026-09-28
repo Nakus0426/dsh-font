@@ -27,17 +27,20 @@ plugin_manager { action: "install_bundle", target: "<本目录绝对路径>", re
 
 不要手工编辑 profile 的 `cordis.yml`（每次启动都会被覆写成 `[]`）、`package.json` 或 `cordis.patch.yml`。
 
-### 开发
+### 选择字体
+
+打开 DSH 设置侧栏的「字体」页，搜索并选中字体。选中后立即生效，重启 DSH 后保持。
+
+## 开发
 
 ```bash
 pnpm install
+pnpm verify   # 格式检查 + lint + 类型检查 + 测试 + 构建，提交前跑这个
 pnpm test     # 纯函数单测 + 真实系统字体扫描断言
 pnpm build    # 产出 lib/index.js（Host，ESM）与 lib/client.js（Client，ModuleLoader 包装）
 ```
 
-### 选择字体
-
-打开 DSH 设置侧栏的「字体」页，搜索并选中字体。选中后立即生效，重启 DSH 后保持。
+实现细节（模块加载契约、构建陷阱、Host 侧两条会造成静默失效的硬性要求）见 [docs/implementation-notes.md](docs/implementation-notes.md)。
 
 ## 已知限制
 

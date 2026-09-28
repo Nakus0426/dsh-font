@@ -1,11 +1,11 @@
-import type { Options } from 'tsdown'
+import type { Options } from "tsdown";
 
 const config: Options = {
-  entry: ['src/index.ts'],
-  format: ['esm'],
-  outDir: 'lib',
+  entry: ["src/index.ts"],
+  format: ["esm"],
+  outDir: "lib",
   dts: false,
   clean: false,
-}
+};
 
-export default config
+export default config;
