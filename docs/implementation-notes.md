@@ -140,7 +140,7 @@ pnpm build    # 产出 lib/index.js（Host，ESM）与 lib/client.js（Client，
 
 ## 发布
 
-发布走 GitHub Actions 一键流水线（[.github/workflows/release.yml](../.github/workflows/release.yml)），采用 npm **Trusted Publishing（OIDC）**：CI 以 GitHub 短时效身份令牌换取临时发布凭证，仓库不持有任何长期 npm token，发布产物自动带 provenance 签名。
+发布走 GitHub Actions 流水线（[.github/workflows/release.yml](../.github/workflows/release.yml)），采用 npm **Trusted Publishing（OIDC）+ Staged Publishing** 双重人工门禁：仓库不持有任何长期 npm token；npm 侧只允许 `npm stage publish`（Trusted Publisher 未勾选 Allow npm publish），版本需人工 2FA 批准才上线；GitHub 侧 tag/Release 由 `release` 环境审批把守。发布产物自动带 provenance 签名。
 
 ### 首次发布（一次性，已完成）
 
@@ -154,17 +154,21 @@ npm whoami --registry=https://registry.npmjs.org/    # 确认登录成功
 
 显式指定官方源是因为本机全局 registry 配置的是 npmmirror 镜像（用于日常安装加速），镜像站不能发布；凭据按源地址存于 `~/.npmrc`，互不影响。
 
-然后在 npmjs.com 该包页 **Settings → Trusted Publisher** 添加 GitHub Actions（字段区分大小写）：
+### 两侧门禁配置（一次性）
 
-- Organization or user：`Nakus0426`
-- Repository：`dsh-font`
-- Workflow filename：`release.yml`
+npm 侧（包页 Settings → Trusted Publisher，字段区分大小写）：GitHub Actions，Organization or user `Nakus0426`、Repository `dsh-font`、Workflow filename `release.yml`；**Allowed actions 不勾选 Allow npm publish**——可信发布方只能 `npm stage publish`，直接 `npm publish` 会被 `OIDC permission denied` 拒绝。
 
-可选加固：包 Settings → Publishing access 选 **Require two-factor authentication and disallow tokens**，关闭除 OIDC 之外的一切发布通道。
+GitHub 侧：Settings → Environments → 新建 `release` 环境 → Required reviewers 添加 `Nakus0426`。它把守 finalize job；不配置则版本提交/tag/Release 会在暂存后立即发生，门禁失效。
 
-### 日常发布
+### 日常发布（三步）
 
-1. Actions 页选 **Release** → **Run workflow** → 输入版本号 → 运行。
-2. 流水线自动完成：版本号写入 `package.json` → `pnpm verify` 全量门禁 → 发布到 npmjs.com（provenance 签名）与 GitHub Packages → 提交版本号、打 `v*` tag → 创建 GitHub Release 并附上 `npm pack` 产物 tarball。
+1. Actions 页选 **Release** → **Run workflow** → 输入版本号 → **stage** job：版本写入 `package.json` → `pnpm verify` 全量门禁 → `npm stage publish` 暂存（不上线）。
+2. npmjs.com 包页 → **Staged Packages** → **Approve**（2FA）→ npm 正式上线。审阅可用 `npm stage list`、`npm stage view <stage-id>`。
+3. 回到该 run → 批准 `release` 环境部署 → **finalize** job：发布 GitHub Packages、提交版本号、打 `v*` tag、创建 GitHub Release（附 `npm pack` 产物 tarball）。
 
-注意：同一版本号不能重复发布，流水线中途失败后需换下一个版本号重跑。
+### 约定与边界
+
+- **先 ② 后 ③**：tag/Release 应发生在 npm 上线之后。
+- finalize 固定在 stage 时的 commit 上构建，保证发布内容与批准内容一致；若期间 main 有新提交，push 会因非快进失败，需重新 stage。
+- 放弃发布 = npm 侧 Reject 暂存 + 取消 run，无任何残留（版本提交与 tag 都在 finalize 才产生）。
+- 同一版本号不能重复 stage，失败后需换下一个版本号重跑。

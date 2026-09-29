@@ -1,9 +1,12 @@
 name: Release
 
-# 一键发布：Actions 页选 Release → Run workflow → 输入版本号。
-# 流程：写入版本号 → pnpm verify 全量门禁 → 发布 npmjs + GitHub Packages
-# → 提交版本号并打 tag → 创建 GitHub Release 并附 npm pack 产物。
-# 注意：同一版本号不可重复发布，失败后需换号重跑。
+# Staged 发布（双重人工门禁，npm 侧 + GitHub 侧）：
+# ① Run workflow → stage job：全量校验后 npm stage publish 暂存（不上线）
+# ② npmjs.com 包页 Staged Packages 用 2FA 批准 → npm 正式上线
+# ③ 回到该 run 批准 release 环境部署 → finalize job：GH Packages + 版本提交 + tag + GitHub Release
+# 前置：仓库需存在 release 环境并配置 Required reviewers，否则 ③ 的门禁失效。
+# 推荐顺序：先 ② 后 ③（finalize 产出 tag/Release，应发生在 npm 上线之后）。
+# 同一版本号不可重复 stage；放弃发布 = npm 侧 Reject 暂存 + 取消本 run，无任何残留。
 
 on:
   workflow_dispatch:
@@ -19,8 +22,10 @@ permissions:
   id-token: write
 
 jobs:
-  release:
+  stage:
     runs-on: windows-latest
+    outputs:
+      sha: ${{ steps.ref.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
 
@@ -38,7 +43,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Bump version
+      - name: Validate and bump version
         shell: bash
         env:
           RELEASE_VERSION: ${{ inputs.version }}
@@ -47,16 +52,61 @@ jobs:
             echo "::error::version must be x.y.z, got: $RELEASE_VERSION"
             exit 1
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           npm version "$RELEASE_VERSION" --no-git-tag-version
           pnpm format
 
       - name: Verify (format + lint + typecheck + test + build)
         run: pnpm verify
 
-      - name: Publish to npmjs.com (OIDC trusted publishing)
-        run: npm publish --provenance
+      - name: Stage on npmjs.com (goes live only after manual approval)
+        run: npm stage publish --provenance
+
+      - name: Record staged commit
+        id: ref
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Next steps
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          echo "::notice::Staged @nakus0426/dsh-font@$RELEASE_VERSION. ① npmjs.com 包页 Staged Packages 用 2FA 批准上线；② 回到本 run 批准 release 环境部署以完成 tag 与 GitHub Release。"
+
+  finalize:
+    needs: stage
+    runs-on: windows-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 固定在 stage 校验/暂存所用的 commit 上，保证发布内容与批准内容一致；
+          # 若期间 main 有新提交，push 会因非快进失败，需重新 stage。
+          ref: ${{ needs.stage.outputs.sha }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Bump version
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          npm version "$RELEASE_VERSION" --no-git-tag-version
+          pnpm format
+
+      - name: Build
+        run: pnpm build
 
       - name: Publish to GitHub Packages
         shell: bash
@@ -75,7 +125,7 @@ jobs:
           git add package.json
           git commit -m "release: v$RELEASE_VERSION"
           git tag "v$RELEASE_VERSION"
-          git push origin main "v$RELEASE_VERSION"
+          git push origin "HEAD:main" "v$RELEASE_VERSION"
 
       - name: Create GitHub Release
         shell: bash
