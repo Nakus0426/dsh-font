@@ -115,7 +115,10 @@ jobs:
           npm publish --registry https://npm.pkg.github.com
 
       - name: Pack release tarball
-        run: npm pack --pack-destination dist
+        shell: bash
+        run: |
+          mkdir -p dist
+          npm pack --pack-destination dist
 
       - name: Push version commit and tag
         shell: bash
