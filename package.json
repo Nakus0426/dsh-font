@@ -22,7 +22,6 @@
     "build": "pnpm build:host && pnpm build:client",
     "build:host": "tsdown --config tsdown.host.config.ts",
     "build:client": "tsdown --config tsdown.client.config.ts",
-    "prepare": "pnpm build",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --type-aware",
     "format": "oxfmt",
