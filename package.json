@@ -1,6 +1,10 @@
 {
   "name": "@nakus0426/dsh-font",
   "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nakus0426/dsh-font.git"
+  },
   "files": [
     "lib",
     "cordis.patch.yml",

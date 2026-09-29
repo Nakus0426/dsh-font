@@ -53,11 +53,29 @@ pnpm build    # 产出 lib/index.js（Host，ESM）与 lib/client.js（Client，
 
 ## 发布
 
-发布走 GitHub Actions 一键流水线（[.github/workflows/release.yml](.github/workflows/release.yml)）：
+发布走 GitHub Actions 一键流水线（[.github/workflows/release.yml](.github/workflows/release.yml)），采用 npm **Trusted Publishing（OIDC）**：CI 以 GitHub 短时效身份令牌换取临时发布凭证，仓库不持有任何长期 npm token，发布产物自动带 provenance 签名。
 
-1. **前置（一次性）**：在仓库 Settings → Secrets and variables → Actions 添加 `NPM_TOKEN`，值为 npmjs.com 的 Access Token（类型选 Automation，需具备 `@nakus0426` scope 的发布权限）。
-2. Actions 页选 **Release** → **Run workflow** → 输入版本号（如 `0.2.0`）→ 运行。
-3. 流水线自动完成：版本号写入 `package.json` → `pnpm verify` 全量门禁 → 发布到 npmjs.com 与 GitHub Packages → 提交版本号、打 `v*` tag → 创建 GitHub Release 并附上 `npm pack` 产物 tarball。
+### 首次发布（一次性）
+
+npm 要求包已存在才能配置可信发布方，所以第一版手动发：
+
+```bash
+npm login
+npm publish   # 触发 prepare 自动构建，发布 0.1.0
+```
+
+然后在 npmjs.com 该包页 **Settings → Trusted Publisher** 添加 GitHub Actions（字段区分大小写）：
+
+- Organization or user：`Nakus0426`
+- Repository：`dsh-font`
+- Workflow filename：`release.yml`
+
+可选加固：包 Settings → Publishing access 选 **Require two-factor authentication and disallow tokens**，关闭除 OIDC 之外的一切发布通道。
+
+### 日常发布
+
+1. Actions 页选 **Release** → **Run workflow** → 输入版本号 → 运行。
+2. 流水线自动完成：版本号写入 `package.json` → `pnpm verify` 全量门禁 → 发布到 npmjs.com（provenance 签名）与 GitHub Packages → 提交版本号、打 `v*` tag → 创建 GitHub Release 并附上 `npm pack` 产物 tarball。
 
 注意：同一版本号不能重复发布，流水线中途失败后需换下一个版本号重跑。
 
