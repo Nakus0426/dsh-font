@@ -39,7 +39,14 @@ test(
     assert.ok(registration !== undefined, "the bundle must call window.__ModuleLoader__.load");
     // A mismatch makes the loader reject the bundle with
     // `loaded without registering "<id>" via __ModuleLoader__.load`.
-    assert.equal(registration.id, "dsh-font", "the registration id must equal the package name");
+    // The id is the bundle identity in cordis.patch.yml, deliberately decoupled
+    // from the npm package name (`@nakus0426/dsh-font`) so persisted settings
+    // (keyed by this id) survive a package rename.
+    assert.equal(
+      registration.id,
+      "dsh-font",
+      "the registration id must equal the bundle id in cordis.patch.yml",
+    );
 
     const exports = registration.factory((specifier) => {
       if (specifier in seed) return seed[specifier];

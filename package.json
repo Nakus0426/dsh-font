@@ -1,7 +1,6 @@
 {
-  "name": "dsh-font",
+  "name": "@nakus0426/dsh-font",
   "version": "0.1.0",
-  "private": true,
   "files": [
     "lib",
     "cordis.patch.yml",
@@ -12,10 +11,14 @@
     ".": "./lib/index.js",
     "./client": "./lib/client.js"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "pnpm build:host && pnpm build:client",
     "build:host": "tsdown --config tsdown.host.config.ts",
     "build:client": "tsdown --config tsdown.client.config.ts",
+    "prepare": "pnpm build",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --type-aware",
     "format": "oxfmt",
@@ -45,6 +48,7 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.4"
   },
+  "packageManager": "pnpm@12.4.2",
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"

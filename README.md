@@ -17,13 +17,22 @@
 
 ### 安装
 
-通过 DSH 的插件管理器安装（它会跑 pnpm、校验 `dsh.bundle.patch`、把包写入 `dsh.profile.bundles` 并热加载）：
+通过 DSH 的插件管理器安装（支持三种形式）：
 
 ```
-plugin_manager { action: "install_bundle", target: "<本目录绝对路径>", registry: "https://registry.npmjs.org" }
+# npm 包名
+@nakus0426/dsh-font
+
+# GitHub 仓库地址
+https://github.com/Nakus0426/dsh-font
+
+# 本地目录路径
+<本目录绝对路径>
 ```
 
 **新装的 bundle 需要重启 DSH 才会被解析。** 不重启时插件条目表现为 `failed to import`。
+
+也可从 [GitHub Releases](https://github.com/Nakus0426/dsh-font/releases) 下载 `*.tgz` 解压后，对解压目录执行同样的安装命令。
 
 不要手工编辑 profile 的 `cordis.yml`（每次启动都会被覆写成 `[]`）、`package.json` 或 `cordis.patch.yml`。
 
@@ -41,6 +50,16 @@ pnpm build    # 产出 lib/index.js（Host，ESM）与 lib/client.js（Client，
 ```
 
 实现细节（模块加载契约、构建陷阱、Host 侧两条会造成静默失效的硬性要求）见 [docs/implementation-notes.md](docs/implementation-notes.md)。
+
+## 发布
+
+发布走 GitHub Actions 一键流水线（[.github/workflows/release.yml](.github/workflows/release.yml)）：
+
+1. **前置（一次性）**：在仓库 Settings → Secrets and variables → Actions 添加 `NPM_TOKEN`，值为 npmjs.com 的 Access Token（类型选 Automation，需具备 `@nakus0426` scope 的发布权限）。
+2. Actions 页选 **Release** → **Run workflow** → 输入版本号（如 `0.2.0`）→ 运行。
+3. 流水线自动完成：版本号写入 `package.json` → `pnpm verify` 全量门禁 → 发布到 npmjs.com 与 GitHub Packages → 提交版本号、打 `v*` tag → 创建 GitHub Release 并附上 `npm pack` 产物 tarball。
+
+注意：同一版本号不能重复发布，流水线中途失败后需换下一个版本号重跑。
 
 ## 已知限制
 

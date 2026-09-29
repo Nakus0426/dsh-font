@@ -1,0 +1,87 @@
+name: Release
+
+# 一键发布：Actions 页选 Release → Run workflow → 输入版本号。
+# 流程：写入版本号 → pnpm verify 全量门禁 → 发布 npmjs + GitHub Packages
+# → 提交版本号并打 tag → 创建 GitHub Release 并附 npm pack 产物。
+# 注意：同一版本号不可重复发布，失败后需换号重跑。
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "semver 版本号（不带 v 前缀，如 0.2.0）"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Bump version
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          if ! [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version must be x.y.z, got: $RELEASE_VERSION"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          npm version "$RELEASE_VERSION" --no-git-tag-version
+          pnpm format
+
+      - name: Verify (format + lint + typecheck + test + build)
+        run: pnpm verify
+
+      - name: Publish to npmjs.com
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish to GitHub Packages
+        shell: bash
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
+          npm publish --registry https://npm.pkg.github.com
+
+      - name: Pack release tarball
+        run: npm pack --pack-destination dist
+
+      - name: Push version commit and tag
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          git add package.json
+          git commit -m "release: v$RELEASE_VERSION"
+          git tag "v$RELEASE_VERSION"
+          git push origin main "v$RELEASE_VERSION"
+
+      - name: Create GitHub Release
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v$RELEASE_VERSION" \
+            "dist/nakus0426-dsh-font-$RELEASE_VERSION.tgz" \
+            --title "v$RELEASE_VERSION" \
+            --generate-notes
