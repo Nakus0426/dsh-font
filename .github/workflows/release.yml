@@ -27,11 +27,11 @@ jobs:
     outputs:
       sha: ${{ steps.ref.outputs.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: pnpm
@@ -78,15 +78,15 @@ jobs:
     runs-on: windows-latest
     environment: release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # 固定在 stage 校验/暂存所用的 commit 上，保证发布内容与批准内容一致；
           # 若期间 main 有新提交，push 会因非快进失败，需重新 stage。
           ref: ${{ needs.stage.outputs.sha }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: pnpm
