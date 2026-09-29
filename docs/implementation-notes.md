@@ -94,9 +94,9 @@ DSH 的客户端插件**不是**普通 ES 模块：
 
 代码类型校验与格式化都用 oxc 生态，但需要说清一件事：**oxc 自身不实现类型检查器。**
 
-- `oxlint --type-aware` 只负责类型感知的 lint 规则；类型信息由独立后端 `oxlint-tsgolint` 提供，而 `tsgolint` 内部调用的是 **`tsgo`**（TypeScript 官方原生移植版，`@typescript/native-preview`）。
-- 编译器级类型检查由 `pnpm typecheck`（`tsgo --noEmit`）承担，`pnpm lint` 在其上加类型感知规则，两者共用同一份 `tsconfig.json`。
-- `typescript` 已移除：`tsgo` 是唯一类型检查器，而 `tsdown` 只在生成 `.d.ts` 时需要它，本包用 `dts: false`。
+- `oxlint --type-aware` 只负责类型感知的 lint 规则；类型信息由独立后端 `oxlint-tsgolint` 提供，其平台二进制内置 `tsgo` 引擎（TypeScript 官方原生移植版），与项目 devDependencies 无关。
+- 编译器级类型检查由 `pnpm typecheck`（`tsc --noEmit`）承担，`pnpm lint` 在其上加类型感知规则，两者共用同一份 `tsconfig.json`。
+- `typescript@7.0.2` 即原生编译器（tsgo）的稳定发行版，已替代早先的 `@typescript/native-preview` dev 快照；`tsdown` 只在生成 `.d.ts` 时需要 JS 版编译器，本包用 `dts: false`，构建不受影响。
 - `tsconfig.json` 开启 `strict`、`noUncheckedIndexedAccess`、`verbatimModuleSyntax`、`jsx: react-jsx`，并用 `customConditions: ["node"]` 让 Host 侧按 Node 条件解析 —— `fontkit` 的 `browser` 入口与 Node 入口不同，不加这个条件 TS 会去解析 `dist/browser-module.mjs`。
 - `.oxlintrc.json` 只做一件事：对 `test/**/*.mjs` 关闭 `typescript/no-floating-promises`（node:test 的 `test()` 返回值本就交给 runner）。
 - `.oxfmtrc.json` 排除 `docs/**` 与 `test/fixtures/**`；`lib/`、`node_modules/` 由 `.gitignore` 排除。

@@ -16,7 +16,7 @@
     "build": "pnpm build:host && pnpm build:client",
     "build:host": "tsdown --config tsdown.host.config.ts",
     "build:client": "tsdown --config tsdown.client.config.ts",
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "tsc --noEmit",
     "lint": "oxlint --type-aware",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
@@ -34,13 +34,13 @@
     "@types/node": "^22.10.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.7",
-    "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "oxfmt": "^0.70.0",
     "oxlint": "^1.85.0",
     "oxlint-tsgolint": "^7.0.2003",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tsdown": "^0.15.0"
+    "tsdown": "^0.15.0",
+    "typescript": "7.0.2"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.4"
