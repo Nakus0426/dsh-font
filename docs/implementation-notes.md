@@ -45,7 +45,8 @@ DSH 的客户端插件**不是**普通 ES 模块：
 
 - bundle 以 **classic script** 加载（`document.createElement("script")`，没有 `type="module"`），所以 bundle 里出现 `import`/`export` 就是语法错误。
 - 必须调用 `window.__ModuleLoader__.load({ id, factory })` 注册自己，否则启动报 `loaded without registering "<id>" via __ModuleLoader__.load`。
-- **注册 id 必须等于包名**（或 `<包名>/client`）。
+- **注册 id 必须等于包名**（或 `<包名>/client`）。cordis 行 id（`cordis.patch.yml` 里的 `dsh-font`）是另一个命名空间：它寻址 Loader 行与本插件的 Config 文档，不寻址浏览器模块图。
+  - 写错的失效方式很响：`arrive()` 判定 bundle「没注册自己」，于是改用单资源 URL **再执行一次**该脚本，第二次 `load` 抛 `duplicate factory registration for "dsh-font"`；条目仍然拿不到 factory，web boot 随即以 `web boot: 1 entry did not activate` + `<包名>: import failed (see console for the import error)` 中止 —— 桌面端表现为启动即崩溃（`crash-*-web-boot.log`）。
 - `factory` 内部是 CJS 风格：`require(spec)` + `module.exports`，且必须 `return module.exports`。
 - `require` 只认固定的 **9 项平台种子模块**：`react`、`react/jsx-runtime`、`react-dom`、`react-dom/client`、`@deepseek-ai/cordis`、`@deepseek-ai/dsh-client-store`、`@deepseek-ai/dsh-client-ui-slots`、`@deepseek-ai/dsh-client-ui-primitives`、`@deepseek-ai/dsh-client-ui-dockkit`。没有 import map，没有相对模块解析（`require("./x")` 抛错）。
 - `test/client-bundle.test.mjs` 用 `node:vm` 在独立上下文里求值 bundle，断言注册 id 等于包名，且没有 require 种子表以外的模块。
@@ -53,8 +54,8 @@ DSH 的客户端插件**不是**普通 ES 模块：
 ### 构建要点
 
 - `tsdown` 用 `outExtensions: () => ({ js: '.js' })` 强制 `.js` 扩展名。`type: "module"` 下 CJS 默认产出 `.cjs`，而 DSH 按 `.js` 约定提供 bundle（`/plugins/<包名>/client.js?rev=<rev>`，且服务端拒绝 rev 不匹配的请求）。
-- `module`/`exports` 容器由 banner 注入，footer 返回 `module.exports`。
-- CSS 以字符串常量导出，在 `apply()` 内经 `ctx.effect` 注入 `<style data-plugin data-plugin-css>`，随插件卸载回收（与官方 `ui-theme` 的 `installThemeStyles` 一致）。`data-plugin-css` 同时是重复注入的去重键。
+- `module`/`exports` 容器由 banner 注入，footer 返回 `module.exports`。banner 里的注册 id 由 `tsdown.client.config.ts` 从 `package.json` 的 `name` 读出后注入，不再手写，避免与包名漂移。
+- CSS 以字符串常量导出，在 `apply()` 内经 `ctx.effect` 注入 `<style data-plugin data-plugin-css>`，随插件卸载回收（与官方 `ui-theme` 的 `installThemeStyles` 一致）。`data-plugin` 取**包名**（loader 的 `removeOwnedStyles()` 按包名回收，HMR 重建时才能收掉旧 tag），`data-plugin-css` 是重复注入的去重键。
 
 ## Host 侧两条硬性要求（都会造成静默失效）
 

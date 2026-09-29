@@ -8,6 +8,7 @@ import { runInNewContext } from "node:vm";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const bundle = join(root, "lib", "client.js");
+const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const require = createRequire(import.meta.url);
 
 /** The only modules a bundle may resolve, mirroring the platform seed table. */
@@ -37,15 +38,22 @@ test(
     });
 
     assert.ok(registration !== undefined, "the bundle must call window.__ModuleLoader__.load");
-    // A mismatch makes the loader reject the bundle with
-    // `loaded without registering "<id>" via __ModuleLoader__.load`.
-    // The id is the bundle identity in cordis.patch.yml, deliberately decoupled
-    // from the npm package name (`@nakus0426/dsh-font`) so persisted settings
-    // (keyed by this id) survive a package rename.
+    // The client module system keys its boot graph rows by the resolved package
+    // name (`reconcilePackage` -> `graphRow(packageName, ...)`) and `arrive()`
+    // accepts a bundle only when it registered exactly that id. With a mismatch
+    // the loader reports `loaded without registering "<id>" via
+    // __ModuleLoader__.load`, retries the bundle on its one-resource URL — which
+    // re-executes the script and throws `duplicate factory registration` — and
+    // the entry never activates, so the web boot fails with
+    // `web boot: 1 entry did not activate`.
+    //
+    // The cordis row id in cordis.patch.yml (`dsh-font`) is a different name
+    // space: it addresses the Loader row and this plugin's Config document, not
+    // the browser module graph.
     assert.equal(
       registration.id,
-      "dsh-font",
-      "the registration id must equal the bundle id in cordis.patch.yml",
+      manifest.name,
+      "the registration id must equal the npm package name",
     );
 
     const exports = registration.factory((specifier) => {

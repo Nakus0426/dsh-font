@@ -16,6 +16,20 @@ const NS = "settings.dsh-font";
 /** Loader entry id whose Config document this page edits. */
 const ENTRY_ID = "dsh-font";
 
+/**
+ * This package's npm name.
+ *
+ * The client module system addresses its boot graph by package name
+ * (`graphRow(packageName, …)`), so this — not {@link ENTRY_ID} — is the id the
+ * bundle registers and the id its stylesheet is attributed to. The two name
+ * spaces stay separate on purpose: the cordis row id addresses the Loader row
+ * and this plugin's Config document, the package name addresses the browser
+ * module graph. `pnpm build:client` injects the same value into the bundle
+ * banner from `package.json`, and `test/client-bundle.test.mjs` holds them
+ * equal.
+ */
+const PACKAGE = "@nakus0426/dsh-font";
+
 /** English copy. */
 const en = {
   title: "Fonts",
@@ -115,7 +129,7 @@ const CSS = `
 `;
 
 /** Stylesheet tag id, also the dedupe key across re-materialization. */
-const STYLE_TAG_ID = "dsh-font/client.css";
+const STYLE_TAG_ID = `${PACKAGE}/client.js`;
 
 type FontChoice = Record<FontField, string>;
 
@@ -184,8 +198,9 @@ function subscribeChoice(listener: () => void): () => void {
 /**
  * Mount this plugin's stylesheet once and return its teardown.
  *
- * The tag carries `data-plugin` so the module loader can attribute it, and
- * `data-plugin-css` so a re-materialized factory does not add a second copy.
+ * The tag carries `data-plugin` — the package name, which is the id the loader
+ * attributes owned styles by — and `data-plugin-css` so a re-materialized
+ * factory does not add a second copy.
  *
  * @returns the disposer removing the tag this call created, if any.
  */
@@ -193,7 +208,7 @@ function mountStyles(): () => void {
   if (typeof document === "undefined") return () => {};
   if (document.querySelector(`style[data-plugin-css="${STYLE_TAG_ID}"]`) !== null) return () => {};
   const tag = document.createElement("style");
-  tag.dataset.plugin = "dsh-font";
+  tag.dataset.plugin = PACKAGE;
   tag.dataset.pluginCss = STYLE_TAG_ID;
   tag.textContent = CSS;
   document.head.appendChild(tag);
