@@ -1,6 +1,17 @@
 # 实现细节与陷阱
 
-面向维护者。README 只讲怎么用和大概原理，技术约束与踩坑记录集中在这里。
+面向维护者。README 只讲安装与使用，实现原理、开发与发布流程集中在本文。
+
+## 实现概览
+
+- Host（Node 侧）扫描 Windows 字体目录，用 `fontkit` 从字体文件的 `name` 表读取真实字体族名，展开 `.ttc`/`.otc` 集合并按 family 归并，通过 `GET /api/fonts.catalog` 提供字体目录。
+- Client（浏览器侧）注册「字体」设置页，提供搜索、等宽字体置顶；选中即写 `:root` 内联 CSS 变量，并通过 `ctx.configForms` 持久化到 settings 文档。
+- 两侧经 `ctx.connection.fetch.register()` 注册的 `/api/` 路由通信。
+
+字体变量映射：
+
+- 界面字体 → 覆盖 CSS 变量 `--dsw-font-family`
+- 代码字体 → 覆盖 CSS 变量 `--ds-font-family-code`，同时设置 `--dsw-font-mono`
 
 ## 为什么必须有 Host 半边
 
@@ -90,6 +101,15 @@ DSH 的客户端插件**不是**普通 ES 模块：
 - 仅客户端半边改动**不需要重启**：浏览器按 bundle 重新拉取，硬刷新页面即可。
 - Loader 用裸 `import()` 加载插件（`cordis-plugin-loader/lib/index.js`，无破缓存参数），而 Node 的 ESM 缓存按 URL 缓存整个进程 —— 所以 disable → enable 的 reload **无法**拾取 Host 半边的代码改动。
 
+## 开发
+
+```bash
+pnpm install
+pnpm verify   # 格式检查 + lint + 类型检查 + 测试 + 构建，提交前跑这个
+pnpm test     # 纯函数单测 + 真实系统字体扫描断言
+pnpm build    # 产出 lib/index.js（Host，ESM）与 lib/client.js（Client，ModuleLoader 包装）
+```
+
 ## 工具链与 oxc 的边界
 
 代码类型校验与格式化都用 oxc 生态，但需要说清一件事：**oxc 自身不实现类型检查器。**
@@ -116,3 +136,34 @@ DSH 的客户端插件**不是**普通 ES 模块：
 - slot 渲染器本身用 React 创建元素（`ctx.slots.register(options, Component)` 里的 `Component` 由渲染器渲染），签名上拿不到 DOM 容器去 `createApp().mount()`。
 - `practices.md` 明确禁止替换 app root 或往 `document.body` 追加第二个应用。
 - 硬塞的代价：把整个 Vue 运行时打进 bundle，在 React 树里再跑一个协调器，还拿不到 slot 传来的 `t`/`useStore`/`renderActions`，主题 token 也要重搭。
+
+## 发布
+
+发布走 GitHub Actions 一键流水线（[.github/workflows/release.yml](../.github/workflows/release.yml)），采用 npm **Trusted Publishing（OIDC）**：CI 以 GitHub 短时效身份令牌换取临时发布凭证，仓库不持有任何长期 npm token，发布产物自动带 provenance 签名。
+
+### 首次发布（一次性，已完成）
+
+npm 要求包已存在才能配置可信发布方，所以第一版手动发：
+
+```bash
+npm login --registry=https://registry.npmjs.org/
+npm publish --registry=https://registry.npmjs.org/   # 触发 prepare 自动构建，发布 0.1.0
+npm whoami --registry=https://registry.npmjs.org/    # 确认登录成功
+```
+
+显式指定官方源是因为本机全局 registry 配置的是 npmmirror 镜像（用于日常安装加速），镜像站不能发布；凭据按源地址存于 `~/.npmrc`，互不影响。
+
+然后在 npmjs.com 该包页 **Settings → Trusted Publisher** 添加 GitHub Actions（字段区分大小写）：
+
+- Organization or user：`Nakus0426`
+- Repository：`dsh-font`
+- Workflow filename：`release.yml`
+
+可选加固：包 Settings → Publishing access 选 **Require two-factor authentication and disallow tokens**，关闭除 OIDC 之外的一切发布通道。
+
+### 日常发布
+
+1. Actions 页选 **Release** → **Run workflow** → 输入版本号 → 运行。
+2. 流水线自动完成：版本号写入 `package.json` → `pnpm verify` 全量门禁 → 发布到 npmjs.com（provenance 签名）与 GitHub Packages → 提交版本号、打 `v*` tag → 创建 GitHub Release 并附上 `npm pack` 产物 tarball。
+
+注意：同一版本号不能重复发布，流水线中途失败后需换下一个版本号重跑。
