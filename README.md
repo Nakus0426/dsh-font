@@ -27,6 +27,14 @@ https://github.com/Nakus0426/dsh-font
 
 打开 DSH 设置侧栏的「字体」页，搜索并选中字体。选中后立即生效，重启 DSH 后保持。
 
+## 效果预览
+
+字体设置页效果如下：
+
+<img src="docs/screenshot-1.png" width="720" alt="字体设置页">
+
+<img src="docs/screenshot-2.png" width="720" alt="搜索并选择字体">
+
 ## 已知限制
 
 - 只枚举 `%SystemRoot%\Fonts` 与 `%LOCALAPPDATA%\Microsoft\Windows\Fonts`，不包含 Office 私有字体目录。
